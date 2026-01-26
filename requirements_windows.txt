@@ -1,0 +1,13 @@
+# Windows Requirements
+# 
+# Python 3.6+ (includes tkinter by default on Windows)
+# No additional packages required for basic functionality
+#
+# Optional packages for advanced features:
+
+# For creating standalone executable
+# pyinstaller>=5.0.0
+
+# For enhanced functionality (future features)
+# pillow>=9.0.0
+# pywin32>=300
