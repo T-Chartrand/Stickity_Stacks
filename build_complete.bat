@@ -26,7 +26,7 @@ echo [OK] Python found
 echo.
 
 REM Check Inno Setup
-set INNO_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+set "INNO_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 if not exist "%INNO_PATH%" (
     echo.
     echo WARNING: Inno Setup not found at:
@@ -37,7 +37,7 @@ if not exist "%INNO_PATH%" (
     echo   2. Or just build the executable without installer
     echo.
     set /p choice="Build executable only? (Y/N): "
-    if /i "%choice%" neq "Y" (
+    if /i "!choice!" neq "Y" (
         echo Build cancelled.
         pause
         exit /b 1
