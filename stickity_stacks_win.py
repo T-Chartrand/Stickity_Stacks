@@ -46,13 +46,22 @@ class StickyNoteWindow(tk.Toplevel):
         control_frame.pack(side=tk.TOP, fill=tk.X)
         control_frame.pack_propagate(False)
         
-        settings_btn = tk.Button(control_frame, text="⚙", bg=self.bg_color, fg=self.fg_color,
-                                relief=tk.FLAT, bd=0, command=self._open_settings)
+        # Use X instead of emoji for close button
+        close_btn = tk.Button(control_frame, text="X", bg=self.bg_color, fg="red",
+                              relief=tk.FLAT, bd=0, font=("Segoe UI", 10, "bold"),
+                              command=self._delete_note, width=2)
+        close_btn.pack(side=tk.RIGHT, padx=2, pady=2)
+        
+        # Use text for settings button
+        settings_btn = tk.Button(control_frame, text="⋯", bg=self.bg_color, fg=self.fg_color,
+                                relief=tk.FLAT, bd=0, font=("Segoe UI", 14, "bold"),
+                                command=self._open_settings, width=2)
         settings_btn.pack(side=tk.RIGHT, padx=2, pady=2)
         
-        delete_btn = tk.Button(control_frame, text="🗑", bg=self.bg_color, fg=self.fg_color,
-                              relief=tk.FLAT, bd=0, command=self._delete_note)
-        delete_btn.pack(side=tk.RIGHT, padx=2, pady=2)
+        # Title label
+        title_label = tk.Label(control_frame, text=self.note_title, bg=self.bg_color, 
+                              fg=self.fg_color, font=("Segoe UI", 9))
+        title_label.pack(side=tk.LEFT, padx=5)
         
         self.drag_handle = tk.Label(control_frame, text="", bg=self.bg_color)
         self.drag_handle.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
@@ -66,8 +75,9 @@ class StickyNoteWindow(tk.Toplevel):
         if content:
             self.text_widget.insert("1.0", content)
         
-        resize_grip = tk.Label(self, text="⋰", bg=self.bg_color, fg=self.fg_color,
-                              cursor="size_nw_se")
+        # Resize grip with better visibility
+        resize_grip = tk.Label(self, text="◢", bg=self.bg_color, fg=self.fg_color,
+                              cursor="size_nw_se", font=("Segoe UI", 10))
         resize_grip.place(relx=1.0, rely=1.0, anchor=tk.SE)
         resize_grip.bind("<Button-1>", self._start_resize)
         resize_grip.bind("<B1-Motion>", self._do_resize)
@@ -76,7 +86,9 @@ class StickyNoteWindow(tk.Toplevel):
         self.drag_handle.bind("<Button-1>", self._start_drag)
         self.drag_handle.bind("<B1-Motion>", self._do_drag)
         self.text_widget.bind("<Control-s>", lambda e: self.parent.create_new_note())
+        self.text_widget.bind("<Control-n>", lambda e: self.parent.create_new_note())
         self.text_widget.bind("<Control-d>", lambda e: self._delete_note())
+        self.text_widget.bind("<Escape>", lambda e: self._delete_note())
         self.text_widget.bind("<KeyRelease>", lambda e: self.parent.save_notes())
         
     def _start_drag(self, event):
@@ -138,6 +150,7 @@ class StickyNotesApp:
         if not self.notes:
             self.create_new_note()
         self.root.bind_all("<Control-n>", lambda e: self.create_new_note())
+        self.root.bind_all("<Control-q>", lambda e: self.quit_app())
         
     def create_new_note(self, title=None, content=""):
         if title is None:
@@ -174,10 +187,18 @@ class StickyNotesApp:
             self.notes.remove(note)
             note.destroy()
         if not self.notes:
-            self.note_counter = 1
-            self.create_new_note()
+            # If all notes deleted, quit the app
+            self.quit_app()
         else:
             self.save_notes()
+    
+    def quit_app(self):
+        """Quit the entire application"""
+        self.save_notes()
+        for note in self.notes:
+            note.destroy()
+        self.root.quit()
+        self.root.destroy()
             
     def open_settings_dialog(self, note=None):
         win = tk.Toplevel(self.root)
