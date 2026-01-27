@@ -26,12 +26,12 @@ AllowNoIcons=yes
 LicenseFile=LICENSE
 OutputDir=installer_output
 OutputBaseFilename=StickityStacks_Setup_v{#MyAppVersion}
-SetupIconFile=stickity_stacks.png
+; Remove SetupIconFile - no icon for now
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=lowest
 DisableProgramGroupPage=yes
 
