@@ -11,7 +11,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ('stickity_stacks.png', '.'),  # Include app icon
+        ('stickity_stacks.png', '.'),  # Include app icon as data file
     ],
     hiddenimports=[],
     hookspath=[],
@@ -46,6 +46,6 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='stickity_stacks.png',  # App icon
+    icon=None,  # Remove icon for now - can be added later with .ico file
     version_file=None,
 )
