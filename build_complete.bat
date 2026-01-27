@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM ===================================================================
 REM Stickity Stacks - Complete Installer Build Script
 REM This script builds BOTH the executable AND the installer
@@ -16,7 +17,7 @@ echo.
 
 REM Check Python
 python --version >nul 2>&1
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo ERROR: Python not found!
     echo Please install Python from https://www.python.org/downloads/
     pause
@@ -25,12 +26,12 @@ if %errorlevel% neq 0 (
 echo [OK] Python found
 echo.
 
-REM Check Inno Setup
-set "INNO_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-if not exist "%INNO_PATH%" (
+REM Check Inno Setup - using delayed expansion and proper escaping
+set INNO_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+if not exist "!INNO_PATH!" (
     echo.
     echo WARNING: Inno Setup not found at:
-    echo %INNO_PATH%
+    echo !INNO_PATH!
     echo.
     echo You can:
     echo   1. Install Inno Setup from https://jrsoftware.org/isdl.php
@@ -52,10 +53,10 @@ echo.
 REM Install PyInstaller
 echo Checking PyInstaller...
 pip show pyinstaller >nul 2>&1
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo Installing PyInstaller...
     pip install pyinstaller
-    if %errorlevel% neq 0 (
+    if !errorlevel! neq 0 (
         echo ERROR: Failed to install PyInstaller
         pause
         exit /b 1
@@ -79,7 +80,7 @@ echo ===============================================
 echo.
 pyinstaller build_installer.spec
 
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo.
     echo ERROR: Executable build failed!
     pause
@@ -99,7 +100,7 @@ echo      Location: dist\StickityStacks.exe
 echo.
 
 REM Build installer if Inno Setup is available
-if "%BUILD_EXE_ONLY%"=="1" (
+if "!BUILD_EXE_ONLY!"=="1" (
     echo.
     echo ===============================================
     echo   Build Complete (Executable Only)
@@ -121,9 +122,9 @@ echo   STEP 2: Building Installer
 echo ===============================================
 echo.
 
-"%INNO_PATH%" installer.iss
+"!INNO_PATH!" installer.iss
 
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo.
     echo ERROR: Installer build failed!
     echo.
@@ -152,3 +153,4 @@ dir /s dist\StickityStacks.exe | find "StickityStacks.exe"
 dir /s installer_output\*.exe | find ".exe"
 echo.
 pause
+endlocal
