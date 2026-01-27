@@ -30,9 +30,12 @@ class StickyNoteWindow(tk.Toplevel):
         self.font_family = font_family
         self.font_size = font_size
         
+        # Set geometry BEFORE overrideredirect
+        self.geometry("280x220")
+        self.update_idletasks()  # Force geometry update
+        
         self.overrideredirect(True)
         self.attributes('-topmost', False)
-        self.geometry("280x220")
         self.configure(bg=bg_color)
         
         self._create_widgets(content)
@@ -127,6 +130,9 @@ class StickyNotesApp:
         self.fg_color = "#1a1a1a"
         self.bg_color = "#fffad1"
         
+        # Force root to update before creating notes
+        self.root.update_idletasks()
+        
         self.load_preferences()
         self.load_notes()
         if not self.notes:
@@ -139,12 +145,26 @@ class StickyNotesApp:
             self.note_counter += 1
         note = StickyNoteWindow(self.root, len(self.notes), title, content,
                                self.font_family, self.font_size, self.fg_color, self.bg_color)
+        
+        # Position the note
         if self.notes:
             last = self.notes[-1]
+            # Make sure last note dimensions are available
+            last.update_idletasks()
             note.geometry(f"+{last.winfo_x()+30}+{last.winfo_y()+30}")
         else:
-            sw, sh = self.root.winfo_screenwidth(), self.root.winfo_screenheight()
-            note.geometry(f"+{(sw-280)//2}+{(sh-220)//2}")
+            # Update root to get screen dimensions
+            self.root.update_idletasks()
+            sw = self.root.winfo_screenwidth()
+            sh = self.root.winfo_screenheight()
+            # Center the first note
+            x = (sw - 280) // 2
+            y = (sh - 220) // 2
+            note.geometry(f"280x220+{x}+{y}")
+        
+        # Force update before making visible
+        note.update_idletasks()
+        
         self.notes.append(note)
         self.save_notes()
         return note
@@ -215,6 +235,8 @@ class StickyNotesApp:
                 self.note_counter = idx
                 note = self.create_new_note(nd.get('title', f"Note {idx}"), nd.get('content', ''))
                 if 'geometry' in nd:
+                    # Apply saved geometry after note is created
+                    note.update_idletasks()
                     note.geometry(nd['geometry'])
         except Exception as e:
             print(f"Error loading: {e}")
