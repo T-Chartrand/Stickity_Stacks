@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stickity Stacks - Windows Implementation"""
 import tkinter as tk
-from tkinter import ttk, font as tkfont, colorchooser, scrolledtext
+from tkinter import ttk, font as tkfont, colorchooser, scrolledtext, messagebox
 import json
 import os
 from pathlib import Path
@@ -42,30 +42,77 @@ class StickyNoteWindow(tk.Toplevel):
         self._setup_bindings()
         
     def _create_widgets(self, content):
-        control_frame = tk.Frame(self, bg=self.bg_color, height=30)
+        # Control frame with larger height for better button visibility
+        control_frame = tk.Frame(self, bg="#666666", height=25, relief=tk.RAISED, bd=1)
         control_frame.pack(side=tk.TOP, fill=tk.X)
         control_frame.pack_propagate(False)
         
-        # Use X instead of emoji for close button
-        close_btn = tk.Button(control_frame, text="X", bg=self.bg_color, fg="red",
-                              relief=tk.FLAT, bd=0, font=("Segoe UI", 10, "bold"),
-                              command=self._delete_note, width=2)
+        # Close button - bigger and more visible
+        close_btn = tk.Button(
+            control_frame, 
+            text="✕", 
+            bg="#ff4444", 
+            fg="white",
+            relief=tk.RAISED, 
+            bd=2,
+            font=("Segoe UI", 12, "bold"),
+            width=3,
+            cursor="hand2",
+            activebackground="#ff0000",
+            activeforeground="white"
+        )
+        close_btn.config(command=lambda: self._delete_note())
         close_btn.pack(side=tk.RIGHT, padx=2, pady=2)
         
-        # Use text for settings button
-        settings_btn = tk.Button(control_frame, text="⋯", bg=self.bg_color, fg=self.fg_color,
-                                relief=tk.FLAT, bd=0, font=("Segoe UI", 14, "bold"),
-                                command=self._open_settings, width=2)
+        # Settings button
+        settings_btn = tk.Button(
+            control_frame, 
+            text="⚙", 
+            bg="#4CAF50", 
+            fg="white",
+            relief=tk.RAISED, 
+            bd=2,
+            font=("Segoe UI", 11, "bold"),
+            width=3,
+            cursor="hand2",
+            activebackground="#45a049",
+            activeforeground="white"
+        )
+        settings_btn.config(command=lambda: self._open_settings())
         settings_btn.pack(side=tk.RIGHT, padx=2, pady=2)
         
+        # New note button
+        new_btn = tk.Button(
+            control_frame, 
+            text="+", 
+            bg="#2196F3", 
+            fg="white",
+            relief=tk.RAISED, 
+            bd=2,
+            font=("Segoe UI", 12, "bold"),
+            width=3,
+            cursor="hand2",
+            activebackground="#1976D2",
+            activeforeground="white"
+        )
+        new_btn.config(command=lambda: self.parent.create_new_note())
+        new_btn.pack(side=tk.RIGHT, padx=2, pady=2)
+        
         # Title label
-        title_label = tk.Label(control_frame, text=self.note_title, bg=self.bg_color, 
-                              fg=self.fg_color, font=("Segoe UI", 9))
+        title_label = tk.Label(
+            control_frame, 
+            text=self.note_title, 
+            bg="#666666", 
+            fg="white", 
+            font=("Segoe UI", 9, "bold")
+        )
         title_label.pack(side=tk.LEFT, padx=5)
         
-        self.drag_handle = tk.Label(control_frame, text="", bg=self.bg_color)
+        # Drag handle
+        self.drag_handle = tk.Label(control_frame, text="", bg="#666666", cursor="fleur")
         self.drag_handle.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
+        # Text widget
         self.text_widget = scrolledtext.ScrolledText(
             self, wrap=tk.WORD, bg=self.bg_color, fg=self.fg_color,
             font=(self.font_family, self.font_size), relief=tk.FLAT, bd=0,
@@ -75,20 +122,47 @@ class StickyNoteWindow(tk.Toplevel):
         if content:
             self.text_widget.insert("1.0", content)
         
-        # Resize grip with better visibility
-        resize_grip = tk.Label(self, text="◢", bg=self.bg_color, fg=self.fg_color,
-                              cursor="size_nw_se", font=("Segoe UI", 10))
-        resize_grip.place(relx=1.0, rely=1.0, anchor=tk.SE)
+        # Status bar with resize grip
+        status_frame = tk.Frame(self, bg=self.bg_color, height=20)
+        status_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        status_frame.pack_propagate(False)
+        
+        # Resize grip
+        resize_grip = tk.Label(
+            status_frame, 
+            text="⋰⋰", 
+            bg=self.bg_color, 
+            fg="#999999",
+            cursor="size_nw_se", 
+            font=("Courier", 8)
+        )
+        resize_grip.pack(side=tk.RIGHT)
         resize_grip.bind("<Button-1>", self._start_resize)
         resize_grip.bind("<B1-Motion>", self._do_resize)
         
+        # Help text
+        help_label = tk.Label(
+            status_frame,
+            text="Esc=Close | Ctrl+N=New",
+            bg=self.bg_color,
+            fg="#999999",
+            font=("Segoe UI", 7)
+        )
+        help_label.pack(side=tk.LEFT, padx=5)
+        
     def _setup_bindings(self):
+        # Drag bindings
         self.drag_handle.bind("<Button-1>", self._start_drag)
         self.drag_handle.bind("<B1-Motion>", self._do_drag)
-        self.text_widget.bind("<Control-s>", lambda e: self.parent.create_new_note())
-        self.text_widget.bind("<Control-n>", lambda e: self.parent.create_new_note())
-        self.text_widget.bind("<Control-d>", lambda e: self._delete_note())
-        self.text_widget.bind("<Escape>", lambda e: self._delete_note())
+        
+        # Keyboard shortcuts
+        self.bind("<Escape>", lambda e: self._delete_note())
+        self.bind("<Control-d>", lambda e: self._delete_note())
+        self.bind("<Control-n>", lambda e: self.parent.create_new_note())
+        self.bind("<Control-s>", lambda e: self.parent.create_new_note())
+        self.bind("<Control-q>", lambda e: self.parent.quit_app())
+        
+        # Text widget bindings
         self.text_widget.bind("<KeyRelease>", lambda e: self.parent.save_notes())
         
     def _start_drag(self, event):
@@ -110,13 +184,15 @@ class StickyNoteWindow(tk.Toplevel):
         delta_x = event.x_root - self._resize_start_x
         delta_y = event.y_root - self._resize_start_y
         new_width = max(200, self._resize_start_width + delta_x)
-        new_height = max(150, self._resize_start_height + delta_y)
+        new_height = max(180, self._resize_start_height + delta_y)
         self.geometry(f"{new_width}x{new_height}")
         
     def _open_settings(self):
+        print("Settings button clicked!")  # Debug
         self.parent.open_settings_dialog(self)
         
     def _delete_note(self):
+        print("Delete button clicked!")  # Debug
         self.parent.delete_note(self)
         
     def get_content(self):
@@ -149,10 +225,9 @@ class StickyNotesApp:
         self.load_notes()
         if not self.notes:
             self.create_new_note()
-        self.root.bind_all("<Control-n>", lambda e: self.create_new_note())
-        self.root.bind_all("<Control-q>", lambda e: self.quit_app())
         
     def create_new_note(self, title=None, content=""):
+        print("Creating new note...")  # Debug
         if title is None:
             title = f"Note {self.note_counter}"
             self.note_counter += 1
@@ -162,65 +237,88 @@ class StickyNotesApp:
         # Position the note
         if self.notes:
             last = self.notes[-1]
-            # Make sure last note dimensions are available
             last.update_idletasks()
             note.geometry(f"+{last.winfo_x()+30}+{last.winfo_y()+30}")
         else:
-            # Update root to get screen dimensions
             self.root.update_idletasks()
             sw = self.root.winfo_screenwidth()
             sh = self.root.winfo_screenheight()
-            # Center the first note
             x = (sw - 280) // 2
             y = (sh - 220) // 2
             note.geometry(f"280x220+{x}+{y}")
         
-        # Force update before making visible
         note.update_idletasks()
-        
         self.notes.append(note)
         self.save_notes()
         return note
         
     def delete_note(self, note):
+        print(f"Deleting note... Current notes: {len(self.notes)}")  # Debug
         if note in self.notes:
             self.notes.remove(note)
             note.destroy()
         if not self.notes:
-            # If all notes deleted, quit the app
+            print("No more notes, quitting app")  # Debug
             self.quit_app()
         else:
             self.save_notes()
     
     def quit_app(self):
         """Quit the entire application"""
+        print("Quitting app...")  # Debug
         self.save_notes()
-        for note in self.notes:
+        for note in self.notes[:]:
             note.destroy()
+        self.notes.clear()
         self.root.quit()
-        self.root.destroy()
+        try:
+            self.root.destroy()
+        except:
+            pass
             
     def open_settings_dialog(self, note=None):
+        print("Opening settings dialog...")  # Debug
         win = tk.Toplevel(self.root)
         win.title("Stickity Stacks - Settings")
-        win.geometry("400x350")
+        win.geometry("400x400")
         win.resizable(False, False)
         win.configure(bg="#f0f0f0")
-        win.transient(self.root)
-        win.grab_set()
         
         tk.Label(win, text="Customize Your Notes", font=("Segoe UI", 14, "bold"),
                 bg="#f0f0f0").pack(pady=15)
         
         font_frame = tk.LabelFrame(win, text="Font", bg="#f0f0f0", padx=15, pady=10)
         font_frame.pack(padx=20, pady=10, fill=tk.X)
+        
+        tk.Label(font_frame, text="Family:", bg="#f0f0f0").pack(side=tk.LEFT)
         font_var = tk.StringVar(value=self.font_family)
         ttk.Combobox(font_frame, textvariable=font_var,
                     values=sorted(tkfont.families()), state="readonly",
-                    width=30).pack(side=tk.LEFT, padx=5)
+                    width=25).pack(side=tk.LEFT, padx=5)
+        
+        tk.Label(font_frame, text="Size:", bg="#f0f0f0").pack(side=tk.LEFT, padx=(10,0))
         size_var = tk.IntVar(value=self.font_size)
         tk.Spinbox(font_frame, from_=8, to=24, textvariable=size_var,
                   width=5).pack(side=tk.LEFT, padx=5)
+        
+        # Keyboard shortcuts help
+        help_frame = tk.LabelFrame(win, text="Keyboard Shortcuts", bg="#f0f0f0", padx=15, pady=10)
+        help_frame.pack(padx=20, pady=10, fill=tk.BOTH)
+        
+        shortcuts = [
+            ("Ctrl+N", "Create new note"),
+            ("Escape", "Close current note"),
+            ("Ctrl+Q", "Quit application"),
+            ("Drag titlebar", "Move note"),
+            ("Drag ⋰⋰", "Resize note"),
+        ]
+        
+        for key, desc in shortcuts:
+            frame = tk.Frame(help_frame, bg="#f0f0f0")
+            frame.pack(fill=tk.X, pady=2)
+            tk.Label(frame, text=key, bg="#e0e0e0", fg="#333", 
+                    font=("Courier", 9, "bold"), width=15, anchor="w").pack(side=tk.LEFT, padx=5)
+            tk.Label(frame, text=desc, bg="#f0f0f0", anchor="w").pack(side=tk.LEFT)
         
         def apply_settings():
             self.font_family = font_var.get()
@@ -231,9 +329,16 @@ class StickyNotesApp:
             self.save_notes()
             win.destroy()
         
-        tk.Button(win, text="Apply & Close", command=apply_settings,
+        button_frame = tk.Frame(win, bg="#f0f0f0")
+        button_frame.pack(pady=15)
+        
+        tk.Button(button_frame, text="Apply & Close", command=apply_settings,
                  font=("Segoe UI", 10, "bold"), bg="#4CAF50", fg="white",
-                 padx=20, pady=5).pack(pady=15)
+                 padx=20, pady=8, cursor="hand2").pack(side=tk.LEFT, padx=5)
+        
+        tk.Button(button_frame, text="Cancel", command=win.destroy,
+                 font=("Segoe UI", 10), bg="#999", fg="white",
+                 padx=20, pady=8, cursor="hand2").pack(side=tk.LEFT, padx=5)
         
     def save_notes(self):
         data = {'notes': [{'title': n.note_title, 'content': n.get_content(),
@@ -253,10 +358,9 @@ class StickyNotesApp:
             with open(self.data_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             for idx, nd in enumerate(data.get('notes', []), 1):
-                self.note_counter = idx
+                self.note_counter = max(self.note_counter, idx + 1)
                 note = self.create_new_note(nd.get('title', f"Note {idx}"), nd.get('content', ''))
                 if 'geometry' in nd:
-                    # Apply saved geometry after note is created
                     note.update_idletasks()
                     note.geometry(nd['geometry'])
         except Exception as e:
