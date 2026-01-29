@@ -52,10 +52,10 @@ echo.
 
 REM Install PyInstaller
 echo Checking PyInstaller...
-pip show pyinstaller >nul 2>&1
+python -m pip show pyinstaller >nul 2>&1
 if !errorlevel! neq 0 (
     echo Installing PyInstaller...
-    pip install pyinstaller
+    python -m pip install pyinstaller
     if !errorlevel! neq 0 (
         echo ERROR: Failed to install PyInstaller
         pause

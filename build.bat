@@ -25,10 +25,10 @@ echo.
 
 REM Check if PyInstaller is installed, if not install it
 echo [2/5] Checking for PyInstaller...
-pip show pyinstaller >nul 2>&1
+python -m pip show pyinstaller >nul 2>&1
 if %errorlevel% neq 0 (
     echo PyInstaller not found. Installing...
-    pip install pyinstaller
+    python -m pip install pyinstaller
     if %errorlevel% neq 0 (
         echo ERROR: Failed to install PyInstaller
         pause

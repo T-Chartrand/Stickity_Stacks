@@ -49,14 +49,20 @@ class StickyNoteWindow(tk.Toplevel):
         # Use X instead of emoji for close button
         close_btn = tk.Button(control_frame, text="X", bg=self.bg_color, fg="red",
                               relief=tk.FLAT, bd=0, font=("Segoe UI", 10, "bold"),
-                              command=self._delete_note, width=2)
+                              width=2, cursor="hand2",
+                              activebackground=self.bg_color, activeforeground="darkred")
         close_btn.pack(side=tk.RIGHT, padx=2, pady=2)
+        # Bind click events explicitly
+        close_btn.bind("<Button-1>", lambda e: self._delete_note())
         
         # Use text for settings button
         settings_btn = tk.Button(control_frame, text="⋯", bg=self.bg_color, fg=self.fg_color,
                                 relief=tk.FLAT, bd=0, font=("Segoe UI", 14, "bold"),
-                                command=self._open_settings, width=2)
+                                width=2, cursor="hand2",
+                                activebackground=self.bg_color, activeforeground=self.fg_color)
         settings_btn.pack(side=tk.RIGHT, padx=2, pady=2)
+        # Bind click events explicitly
+        settings_btn.bind("<Button-1>", lambda e: self._open_settings())
         
         # Title label
         title_label = tk.Label(control_frame, text=self.note_title, bg=self.bg_color, 

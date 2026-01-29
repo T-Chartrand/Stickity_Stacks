@@ -1,0 +1,274 @@
+name: Build Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 1.0.0)'
+        required: false
+        default: 'auto'
+
+env:
+  PYTHON_VERSION: '3.11'
+  INNO_VERSION: '6'
+
+jobs:
+  build:
+    name: Build Windows Installer
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+        cache: 'pip'
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+    
+    - name: Get version
+      id: get_version
+      shell: bash
+      run: |
+        if [ "${{ github.event_name }}" = "push" ]; then
+          VERSION=${GITHUB_REF#refs/tags/v}
+        elif [ "${{ github.event.inputs.version }}" != "auto" ]; then
+          VERSION=${{ github.event.inputs.version }}
+        else
+          VERSION=$(grep '#define MyAppVersion' installer.iss | cut -d'"' -f2)
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+    
+    - name: Build executable with PyInstaller
+      run: |
+        echo "Building Stickity Stacks executable..."
+        pyinstaller --clean --noconfirm build_installer.spec
+    
+    - name: Verify executable
+      run: |
+        if (Test-Path "dist\StickityStacks.exe") {
+          Write-Host "✓ Executable built successfully"
+          $size = (Get-Item "dist\StickityStacks.exe").Length / 1MB
+          Write-Host "  Size: $([math]::Round($size, 2)) MB"
+        } else {
+          Write-Error "✗ Executable not found!"
+          exit 1
+        }
+      shell: pwsh
+    
+    - name: Install Inno Setup
+      run: |
+        choco install innosetup -y --version=${{ env.INNO_VERSION }}
+    
+    - name: Build installer
+      run: |
+        & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+      shell: pwsh
+    
+    - name: Verify installer
+      run: |
+        $installer = "installer_output\StickityStacks_Setup_v${{ steps.get_version.outputs.version }}.exe"
+        if (Test-Path $installer) {
+          Write-Host "✓ Installer built successfully"
+          $size = (Get-Item $installer).Length / 1MB
+          Write-Host "  Size: $([math]::Round($size, 2)) MB"
+        } else {
+          Write-Error "✗ Installer not found!"
+          exit 1
+        }
+      shell: pwsh
+    
+    - name: Generate checksums
+      run: |
+        $version = "${{ steps.get_version.outputs.version }}"
+        $installer = "installer_output\StickityStacks_Setup_v$version.exe"
+        $exe = "dist\StickityStacks.exe"
+        
+        # Create checksums directory
+        New-Item -ItemType Directory -Force -Path "checksums"
+        
+        # Generate SHA256 hashes
+        $installerHash = (Get-FileHash $installer -Algorithm SHA256).Hash
+        $exeHash = (Get-FileHash $exe -Algorithm SHA256).Hash
+        
+        # Save to files
+        "$installerHash  StickityStacks_Setup_v$version.exe" | Out-File "checksums\SHA256SUMS.txt" -Encoding ASCII
+        "$exeHash  StickityStacks.exe" | Out-File "checksums\SHA256SUMS.txt" -Append -Encoding ASCII
+        
+        Write-Host "✓ Checksums generated"
+        Get-Content "checksums\SHA256SUMS.txt"
+      shell: pwsh
+    
+    - name: Create portable package
+      run: |
+        $version = "${{ steps.get_version.outputs.version }}"
+        
+        # Create portable directory structure
+        $portableDir = "portable\StickityStacks_v$version"
+        New-Item -ItemType Directory -Force -Path "$portableDir\docs"
+        
+        # Copy files
+        Copy-Item "dist\StickityStacks.exe" "$portableDir\"
+        Copy-Item "README_WINDOWS.md" "$portableDir\docs\README.txt"
+        Copy-Item "LICENSE" "$portableDir\docs\"
+        
+        # Create portable README
+        @"
+================================================
+  Stickity Stacks - Portable Edition
+================================================
+
+Version: $version
+
+QUICK START:
+  1. Double-click StickityStacks.exe to run
+  2. No installation required!
+
+See docs\ folder for full documentation.
+"@ | Out-File "$portableDir\README_PORTABLE.txt"
+        
+        # Create ZIP
+        Compress-Archive -Path "$portableDir\*" -DestinationPath "StickityStacks_Portable_v$version.zip" -Force
+        
+        Write-Host "✓ Portable package created"
+      shell: pwsh
+    
+    - name: Upload executable artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: executable
+        path: dist/StickityStacks.exe
+        retention-days: 7
+    
+    - name: Upload installer artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: installer
+        path: installer_output/*.exe
+        retention-days: 30
+    
+    - name: Upload portable artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: portable
+        path: StickityStacks_Portable_*.zip
+        retention-days: 30
+    
+    - name: Upload checksums
+      uses: actions/upload-artifact@v3
+      with:
+        name: checksums
+        path: checksums/SHA256SUMS.txt
+        retention-days: 30
+    
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          installer_output/*.exe
+          StickityStacks_Portable_*.zip
+          checksums/SHA256SUMS.txt
+        body: |
+          ## 🎉 Stickity Stacks v${{ steps.get_version.outputs.version }}
+          
+          ### 📥 Downloads
+          
+          **For most users:**
+          - `StickityStacks_Setup_v${{ steps.get_version.outputs.version }}.exe` - Full installer with uninstaller
+          
+          **For advanced users:**
+          - `StickityStacks_Portable_v${{ steps.get_version.outputs.version }}.zip` - Portable version (no installation)
+          
+          ### 📋 Checksums
+          See `SHA256SUMS.txt` for file verification.
+          
+          ### 🚀 Installation
+          
+          1. Download the installer
+          2. Run and follow the wizard
+          3. Launch from Start Menu
+          
+          ### ✨ Features
+          
+          - Frameless sticky notes
+          - Multiple notes support
+          - Custom fonts and colors
+          - Auto-save functionality
+          - DPI-aware
+          
+          ### 📖 Documentation
+          
+          - [Quick Start Guide](https://github.com/Hot-snakes/Stickity_Stacks/blob/main/QUICKSTART.md)
+          - [Windows README](https://github.com/Hot-snakes/Stickity_Stacks/blob/main/README_WINDOWS.md)
+          - [Full Documentation](https://github.com/Hot-snakes/Stickity_Stacks/blob/main/README.md)
+          
+          ---
+          
+          **Built with GitHub Actions** 🤖
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Build summary
+      run: |
+        Write-Host "`n========================================" -ForegroundColor Cyan
+        Write-Host "  Build Complete!" -ForegroundColor Cyan
+        Write-Host "========================================`n" -ForegroundColor Cyan
+        
+        Write-Host "Version: ${{ steps.get_version.outputs.version }}"
+        Write-Host "`nArtifacts:"
+        
+        $installer = Get-Item "installer_output\*.exe"
+        Write-Host "  Installer: $($installer.Name) ($([math]::Round($installer.Length/1MB, 2)) MB)"
+        
+        $portable = Get-Item "StickityStacks_Portable_*.zip"
+        Write-Host "  Portable:  $($portable.Name) ($([math]::Round($portable.Length/1MB, 2)) MB)"
+        
+        Write-Host "`nChecksums:"
+        Get-Content "checksums\SHA256SUMS.txt" | ForEach-Object {
+          Write-Host "  $_"
+        }
+        
+        Write-Host "`n✓ All builds successful!`n" -ForegroundColor Green
+      shell: pwsh
+
+  test:
+    name: Test Installer
+    needs: build
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Download installer
+      uses: actions/download-artifact@v3
+      with:
+        name: installer
+        path: installer_output
+    
+    - name: Run deployment tests
+      run: |
+        pwsh -File deployment/test_deployment.ps1 -SkipInstall -Verbose
+      continue-on-error: true
+    
+    - name: Upload test results
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: deployment_test_results_*.json
+        retention-days: 30
