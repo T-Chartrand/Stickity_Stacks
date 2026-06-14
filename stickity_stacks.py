@@ -16,7 +16,7 @@ class StickyNote(Gtk.Window):
         self.add_css_class("sticky-note-window")
 
         # Persistence file
-        self.data_file = "stickity_stacks_notes.json"
+        self.data_file = os.path.expanduser("~/.local/share/stickity_stacks_notes.json")
         # Default style values with better font fallbacks
         self.current_font = "Sans 15"
         self.current_fg   = "#1a1a1a"
@@ -123,13 +123,6 @@ class StickyNote(Gtk.Window):
     def create_new_note(self, title, content=""):
         tv = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR)
         tv.set_css_classes(["sticky-note-textview"])
-
-        # Apply font directly to textview as backup
-        try:
-            desc = Pango.FontDescription(self.current_font)
-            tv.override_font(desc)
-        except:
-            print(f"Warning: Could not apply font {self.current_font}")
 
         if content:
             buf = tv.get_buffer()
@@ -260,7 +253,6 @@ class StickyNote(Gtk.Window):
 
         try:
             self.css.load_from_data(css.encode())
-            print(f"CSS applied successfully with font: {family} {size}px")
         except Exception as e:
             print(f"CSS application error: {e}")
 
@@ -330,38 +322,24 @@ class StickyNote(Gtk.Window):
         win.present()
 
     def apply_styling_to_all_notes(self):
-        """Apply current styling to all existing notes"""
         self.apply_css()
-
-        # Apply font directly to each textview as backup
-        try:
-            desc = Pango.FontDescription(self.current_font)
-            for note in self.note_stack:
-                tv = note['textview']
-                tv.override_font(desc)
-                tv.set_css_classes(["sticky-note-textview"])
-        except Exception as e:
-            print(f"Error applying font to textviews: {e}")
 
     def on_font_changed(self, btn, _):
         desc = btn.get_font_desc()
         if desc:
             self.current_font = desc.to_string()
-            print(f"Font changed to: {self.current_font}")
             self.apply_styling_to_all_notes()
 
     def on_text_color_changed(self, btn, _):
         rgba = btn.get_rgba()
         if rgba:
             self.current_fg = rgba.to_string()
-            print(f"Text color changed to: {self.current_fg}")
             self.apply_styling_to_all_notes()
 
     def on_bg_color_changed(self, btn, _):
         rgba = btn.get_rgba()
         if rgba:
             self.current_bg = rgba.to_string()
-            print(f"Background color changed to: {self.current_bg}")
             self.apply_styling_to_all_notes()
 
     def save_notes(self):
@@ -390,7 +368,7 @@ class StickyNote(Gtk.Window):
                 self.note_counter = idx
                 self.create_new_note(entry.get('title', f"Note {idx}"),
                                      entry.get('content', ""))
-            return True
+            return len(self.note_stack) > 0
         except Exception as e:
             print(f"Error loading notes: {e}")
             return False
@@ -415,8 +393,6 @@ class StickyNote(Gtk.Window):
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump(full, f, ensure_ascii=False, indent=2)
 
-            print(f"Preferences saved: font={self.current_font}, fg={self.current_fg}, bg={self.current_bg}")
-
         except Exception as e:
             print(f"Error saving preferences: {e}")
 
@@ -429,7 +405,6 @@ class StickyNote(Gtk.Window):
             self.current_font = prefs.get('font', self.current_font)
             self.current_fg   = prefs.get('fg',   self.current_fg)
             self.current_bg   = prefs.get('bg',   self.current_bg)
-            print(f"Preferences loaded: font={self.current_font}, fg={self.current_fg}, bg={self.current_bg}")
         except Exception as e:
             print(f"Error loading preferences: {e}")
 

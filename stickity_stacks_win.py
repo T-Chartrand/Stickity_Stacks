@@ -188,11 +188,9 @@ class StickyNoteWindow(tk.Toplevel):
         self.geometry(f"{new_width}x{new_height}")
         
     def _open_settings(self):
-        print("Settings button clicked!")  # Debug
         self.parent.open_settings_dialog(self)
-        
+
     def _delete_note(self):
-        print("Delete button clicked!")  # Debug
         self.parent.delete_note(self)
         
     def get_content(self):
@@ -204,7 +202,11 @@ class StickyNoteWindow(tk.Toplevel):
         self.fg_color = fg_color
         self.bg_color = bg_color
         self.configure(bg=bg_color)
-        self.text_widget.configure(bg=bg_color, fg=fg_color, font=(font_family, font_size))
+        self.text_widget.configure(
+            bg=bg_color, fg=fg_color,
+            font=(font_family, font_size),
+            insertbackground=fg_color
+        )
 
 class StickyNotesApp:
     def __init__(self):
@@ -227,7 +229,6 @@ class StickyNotesApp:
             self.create_new_note()
         
     def create_new_note(self, title=None, content=""):
-        print("Creating new note...")  # Debug
         if title is None:
             title = f"Note {self.note_counter}"
             self.note_counter += 1
@@ -253,19 +254,15 @@ class StickyNotesApp:
         return note
         
     def delete_note(self, note):
-        print(f"Deleting note... Current notes: {len(self.notes)}")  # Debug
         if note in self.notes:
             self.notes.remove(note)
             note.destroy()
         if not self.notes:
-            print("No more notes, quitting app")  # Debug
             self.quit_app()
         else:
             self.save_notes()
     
     def quit_app(self):
-        """Quit the entire application"""
-        print("Quitting app...")  # Debug
         self.save_notes()
         for note in self.notes[:]:
             note.destroy()
@@ -277,7 +274,6 @@ class StickyNotesApp:
             pass
             
     def open_settings_dialog(self, note=None):
-        print("Opening settings dialog...")  # Debug
         win = tk.Toplevel(self.root)
         win.title("Stickity Stacks - Settings")
         win.geometry("400x400")
@@ -301,28 +297,44 @@ class StickyNotesApp:
         tk.Spinbox(font_frame, from_=8, to=24, textvariable=size_var,
                   width=5).pack(side=tk.LEFT, padx=5)
         
-        # Keyboard shortcuts help
-        help_frame = tk.LabelFrame(win, text="Keyboard Shortcuts", bg="#f0f0f0", padx=15, pady=10)
-        help_frame.pack(padx=20, pady=10, fill=tk.BOTH)
-        
-        shortcuts = [
-            ("Ctrl+N", "Create new note"),
-            ("Escape", "Close current note"),
-            ("Ctrl+Q", "Quit application"),
-            ("Drag titlebar", "Move note"),
-            ("Drag ⋰⋰", "Resize note"),
-        ]
-        
-        for key, desc in shortcuts:
-            frame = tk.Frame(help_frame, bg="#f0f0f0")
-            frame.pack(fill=tk.X, pady=2)
-            tk.Label(frame, text=key, bg="#e0e0e0", fg="#333", 
-                    font=("Courier", 9, "bold"), width=15, anchor="w").pack(side=tk.LEFT, padx=5)
-            tk.Label(frame, text=desc, bg="#f0f0f0", anchor="w").pack(side=tk.LEFT)
-        
+        # Color settings
+        color_frame = tk.LabelFrame(win, text="Colors", bg="#f0f0f0", padx=15, pady=10)
+        color_frame.pack(padx=20, pady=5, fill=tk.X)
+
+        fg_var = tk.StringVar(value=self.fg_color)
+        bg_var = tk.StringVar(value=self.bg_color)
+
+        def pick_fg():
+            color = colorchooser.askcolor(color=fg_var.get(), title="Text Color", parent=win)
+            if color[1]:
+                fg_var.set(color[1])
+                fg_preview.configure(bg=color[1])
+
+        def pick_bg():
+            color = colorchooser.askcolor(color=bg_var.get(), title="Background Color", parent=win)
+            if color[1]:
+                bg_var.set(color[1])
+                bg_preview.configure(bg=color[1])
+
+        fg_row = tk.Frame(color_frame, bg="#f0f0f0")
+        fg_row.pack(fill=tk.X, pady=3)
+        tk.Label(fg_row, text="Text:", bg="#f0f0f0", width=12, anchor="w").pack(side=tk.LEFT)
+        fg_preview = tk.Label(fg_row, bg=self.fg_color, width=4, relief=tk.SUNKEN)
+        fg_preview.pack(side=tk.LEFT, padx=4)
+        tk.Button(fg_row, text="Choose...", command=pick_fg, cursor="hand2").pack(side=tk.LEFT)
+
+        bg_row = tk.Frame(color_frame, bg="#f0f0f0")
+        bg_row.pack(fill=tk.X, pady=3)
+        tk.Label(bg_row, text="Background:", bg="#f0f0f0", width=12, anchor="w").pack(side=tk.LEFT)
+        bg_preview = tk.Label(bg_row, bg=self.bg_color, width=4, relief=tk.SUNKEN)
+        bg_preview.pack(side=tk.LEFT, padx=4)
+        tk.Button(bg_row, text="Choose...", command=pick_bg, cursor="hand2").pack(side=tk.LEFT)
+
         def apply_settings():
             self.font_family = font_var.get()
             self.font_size = size_var.get()
+            self.fg_color = fg_var.get()
+            self.bg_color = bg_var.get()
             for n in self.notes:
                 n.update_styling(self.font_family, self.font_size, self.fg_color, self.bg_color)
             self.save_preferences()
@@ -382,9 +394,13 @@ class StickyNotesApp:
             
     def save_preferences(self):
         try:
-            data = json.load(open(self.data_file, 'r')) if self.data_file.exists() else {'notes': []}
+            if self.data_file.exists():
+                with open(self.data_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+            else:
+                data = {'notes': []}
             data['_prefs'] = {'font_family': self.font_family, 'font_size': self.font_size,
-                            'fg_color': self.fg_color, 'bg_color': self.bg_color}
+                              'fg_color': self.fg_color, 'bg_color': self.bg_color}
             with open(self.data_file, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
