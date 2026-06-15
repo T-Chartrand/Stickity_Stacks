@@ -18,9 +18,10 @@ class StickyNote(Gtk.Window):
         # Persistence file
         self.data_file = os.path.expanduser("~/.local/share/stickity_stacks_notes.json")
         # Default style values with better font fallbacks
-        self.current_font = "Sans 15"
-        self.current_fg   = "#1a1a1a"
-        self.current_bg   = "#fffad1"
+        self.current_font    = "Sans 15"
+        self.current_fg      = "#1a1a1a"
+        self.current_bg      = "#fffad1"
+        self.current_opacity = 1.0
         # Load saved preferences before UI creation
         self.load_prefs()
 
@@ -46,6 +47,18 @@ class StickyNote(Gtk.Window):
             transition_duration=300
         )
         overlay.set_child(self.stack)
+
+        # Close button
+        close_btn = Gtk.Button()
+        close_btn.set_icon_name("window-close-symbolic")
+        close_btn.set_can_focus(False)
+        close_btn.set_valign(Gtk.Align.START)
+        close_btn.set_halign(Gtk.Align.START)
+        close_btn.set_margin_top(4)
+        close_btn.set_margin_start(4)
+        close_btn.set_css_classes(["close-button"])
+        close_btn.connect("clicked", lambda _: self.close())
+        overlay.add_overlay(close_btn)
 
         # Gear (settings) button
         gear = Gtk.Button()
@@ -99,11 +112,17 @@ class StickyNote(Gtk.Window):
         ))
         self.add_controller(sc)
 
-        # Drag-to-move using GestureClick
+        # Drag-to-move or resize depending on pointer position
         drag = Gtk.GestureClick()
         drag.set_button(1)
         drag.connect("pressed", self.on_drag_begin)
         self.stack.add_controller(drag)
+
+        # Cursor changes near edges to signal resize zones
+        motion = Gtk.EventControllerMotion()
+        motion.set_propagation_phase(Gtk.PropagationPhase.CAPTURE)
+        motion.connect("motion", self.on_motion)
+        overlay.add_controller(motion)
 
         # Apply initial CSS styling
         self.apply_css()
@@ -121,15 +140,34 @@ class StickyNote(Gtk.Window):
         return fallbacks
 
     def create_new_note(self, title, content=""):
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        # Bold single-line title — margins clear the close button (left) and trash+gear (right)
+        title_entry = Gtk.Entry()
+        title_entry.set_text(title)
+        title_entry.set_css_classes(["sticky-title-entry"])
+        title_entry.set_margin_top(4)
+        title_entry.set_margin_start(32)
+        title_entry.set_margin_end(64)
+        box.append(title_entry)
+
+        # Scrollable body — word-wrap, normal weight
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_vexpand(True)
+        scroll.set_hexpand(True)
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+
         tv = Gtk.TextView(wrap_mode=Gtk.WrapMode.WORD_CHAR)
         tv.set_css_classes(["sticky-note-textview"])
-
         if content:
             buf = tv.get_buffer()
             buf.set_text(content)
+        scroll.set_child(tv)
+        box.append(scroll)
+
         name = f"note_{len(self.note_stack)}"
-        self.stack.add_named(tv, name)
-        self.note_stack.append({'textview': tv, 'title': title, 'name': name})
+        self.stack.add_named(box, name)
+        self.note_stack.append({'entry': title_entry, 'textview': tv, 'title': title, 'name': name})
         self.stack.set_visible_child_name(name)
         self.current_note_index = len(self.note_stack) - 1
         self.update_dog_ear_visibility()
@@ -201,12 +239,33 @@ class StickyNote(Gtk.Window):
             background-color: {self.current_bg};
         }}
 
-        /* TextView styling with font fallbacks */
+        /* Title entry — bold, single line, blends with note background */
+        .sticky-title-entry {{
+            background-color: {self.current_bg};
+            color: {self.current_fg};
+            font-family: {font_list};
+            font-size: {size}px;
+            font-weight: bold;
+            border: none;
+            border-bottom: 1px solid rgba(0,0,0,0.12);
+            border-radius: 0;
+            padding: 2px 6px;
+            box-shadow: none;
+        }}
+
+        .sticky-title-entry text {{
+            background-color: {self.current_bg};
+            color: {self.current_fg};
+            font-weight: bold;
+        }}
+
+        /* Body TextView — normal weight, word-wrap */
         .sticky-note-textview {{
             background-color: {self.current_bg};
             color: {self.current_fg};
             font-family: {font_list};
             font-size: {size}px;
+            font-weight: normal;
             padding: 8px;
             border: none;
         }}
@@ -216,10 +275,11 @@ class StickyNote(Gtk.Window):
             color: {self.current_fg};
             font-family: {font_list};
             font-size: {size}px;
+            font-weight: normal;
         }}
 
         /* Button styling */
-        .gear-button, .trash-button {{
+        .close-button, .gear-button, .trash-button {{
             background-color: transparent;
             border: none;
             padding: 2px;
@@ -228,7 +288,7 @@ class StickyNote(Gtk.Window):
             min-height: 24px;
         }}
 
-        .gear-button:hover, .trash-button:hover {{
+        .close-button:hover, .gear-button:hover, .trash-button:hover {{
             background-color: rgba(0,0,0,0.1);
             border-radius: 4px;
         }}
@@ -256,14 +316,50 @@ class StickyNote(Gtk.Window):
         except Exception as e:
             print(f"CSS application error: {e}")
 
+    _RESIZE_MARGIN = 8
+
+    def _edge_at(self, x, y):
+        w, h, m = self.get_width(), self.get_height(), self._RESIZE_MARGIN
+        left, right = x < m, x > w - m
+        top, bottom = y < m, y > h - m
+        if top    and left:  return Gdk.SurfaceEdge.NORTH_WEST
+        if top    and right: return Gdk.SurfaceEdge.NORTH_EAST
+        if bottom and left:  return Gdk.SurfaceEdge.SOUTH_WEST
+        if bottom and right: return Gdk.SurfaceEdge.SOUTH_EAST
+        if top:    return Gdk.SurfaceEdge.NORTH
+        if bottom: return Gdk.SurfaceEdge.SOUTH
+        if left:   return Gdk.SurfaceEdge.WEST
+        if right:  return Gdk.SurfaceEdge.EAST
+        return None
+
+    _EDGE_CURSORS = {
+        Gdk.SurfaceEdge.NORTH_WEST: "nw-resize",
+        Gdk.SurfaceEdge.NORTH_EAST: "ne-resize",
+        Gdk.SurfaceEdge.SOUTH_WEST: "sw-resize",
+        Gdk.SurfaceEdge.SOUTH_EAST: "se-resize",
+        Gdk.SurfaceEdge.NORTH:      "n-resize",
+        Gdk.SurfaceEdge.SOUTH:      "s-resize",
+        Gdk.SurfaceEdge.WEST:       "w-resize",
+        Gdk.SurfaceEdge.EAST:       "e-resize",
+    }
+
+    def on_motion(self, ctrl, x, y):
+        edge = self._edge_at(x, y)
+        name = self._EDGE_CURSORS.get(edge, "default")
+        self.set_cursor(Gdk.Cursor.new_from_name(name, None))
+
     def on_drag_begin(self, gesture, _, x, y):
+        edge = self._edge_at(x, y)
         surf = self.get_surface()
-        if surf and hasattr(surf, 'begin_move'):
-            dev = gesture.get_device()
-            seq = gesture.get_current_sequence()
-            ev  = gesture.get_last_event(seq)
-            if ev:
-                surf.begin_move(dev, 1, x, y, ev.get_time())
+        dev  = gesture.get_device()
+        seq  = gesture.get_current_sequence()
+        ev   = gesture.get_last_event(seq)
+        if not (surf and ev):
+            return
+        if edge is not None and hasattr(surf, 'begin_resize'):
+            surf.begin_resize(edge, dev, 1, x, y, ev.get_time())
+        elif hasattr(surf, 'begin_move'):
+            surf.begin_move(dev, 1, x, y, ev.get_time())
 
     def open_settings(self, _):
         win = Gtk.Window(title="Settings", transient_for=self, modal=True)
@@ -307,6 +403,15 @@ class StickyNote(Gtk.Window):
         bb.connect("notify::rgba", self.on_bg_color_changed)
         box.append(bb)
 
+        # Opacity slider
+        box.append(Gtk.Label(label="Opacity:", halign=Gtk.Align.START))
+        opacity_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0.1, 1.0, 0.05)
+        opacity_scale.set_value(self.current_opacity)
+        opacity_scale.set_draw_value(True)
+        opacity_scale.set_digits(2)
+        opacity_scale.connect("value-changed", self.on_opacity_changed)
+        box.append(opacity_scale)
+
         # Close button with proper styling reapplication
         close = Gtk.Button(label="Close")
         def on_close_clicked(*_):
@@ -323,6 +428,10 @@ class StickyNote(Gtk.Window):
 
     def apply_styling_to_all_notes(self):
         self.apply_css()
+
+    def on_opacity_changed(self, scale):
+        self.current_opacity = scale.get_value()
+        self.set_opacity(self.current_opacity)
 
     def on_font_changed(self, btn, _):
         desc = btn.get_font_desc()
@@ -347,7 +456,8 @@ class StickyNote(Gtk.Window):
         for n in self.note_stack:
             buf = n['textview'].get_buffer()
             txt = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False)
-            notes.append({'title': n['title'], 'content': txt})
+            title = n['entry'].get_text() if 'entry' in n else n.get('title', '')
+            notes.append({'title': title, 'content': txt})
         try:
             full = json.load(open(self.data_file, 'r', encoding='utf-8')) if os.path.exists(self.data_file) else {}
         except:
@@ -384,9 +494,10 @@ class StickyNote(Gtk.Window):
 
             # Update preferences
             full['_prefs'] = {
-                'font': self.current_font,
-                'fg':   self.current_fg,
-                'bg':   self.current_bg
+                'font':    self.current_font,
+                'fg':      self.current_fg,
+                'bg':      self.current_bg,
+                'opacity': self.current_opacity,
             }
 
             # Write back to file
@@ -402,9 +513,11 @@ class StickyNote(Gtk.Window):
         try:
             full = json.load(open(self.data_file, 'r', encoding='utf-8'))
             prefs = full.get('_prefs', {})
-            self.current_font = prefs.get('font', self.current_font)
-            self.current_fg   = prefs.get('fg',   self.current_fg)
-            self.current_bg   = prefs.get('bg',   self.current_bg)
+            self.current_font    = prefs.get('font',    self.current_font)
+            self.current_fg      = prefs.get('fg',      self.current_fg)
+            self.current_bg      = prefs.get('bg',      self.current_bg)
+            self.current_opacity = prefs.get('opacity', self.current_opacity)
+            self.set_opacity(self.current_opacity)
         except Exception as e:
             print(f"Error loading preferences: {e}")
 
