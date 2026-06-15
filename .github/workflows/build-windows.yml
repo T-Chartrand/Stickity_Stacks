@@ -39,7 +39,7 @@ jobs:
             -Filter makeappx.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
           New-Item -ItemType Directory -Force -Path msix-build\Assets | Out-Null
           Copy-Item dist\StickityStacks.exe       msix-build\
-          Copy-Item msix\Package.appxmanifest     msix-build\
+          Copy-Item msix\Package.appxmanifest     msix-build\AppxManifest.xml
           Copy-Item msix\Assets\*                 msix-build\Assets\
           & $makeappx.FullName pack /d msix-build /p installer_output\StickityStacks.msix /nv
           Write-Host "MSIX created: $(Get-Item installer_output\StickityStacks.msix | Select-Object -ExpandProperty Length) bytes"
