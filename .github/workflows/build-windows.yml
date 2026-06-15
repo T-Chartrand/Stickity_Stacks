@@ -27,6 +27,8 @@ jobs:
         uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
         with:
           path: installer.iss
+        env:
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
@@ -41,3 +43,6 @@ jobs:
         with:
           files: installer_output/*.exe
           generate_release_notes: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
