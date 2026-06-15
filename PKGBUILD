@@ -1,4 +1,4 @@
-# Maintainer: T-Chartrand <tyrrellc@gmail.com>
+# Maintainer: T-Chartrand <tyrrellc at gmail dot com>
 pkgname=stickity-stacks-git
 pkgver=r41.a1130a7
 pkgrel=1

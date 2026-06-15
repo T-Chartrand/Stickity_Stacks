@@ -1,0 +1,17 @@
+pkgbase = stickity-stacks-git
+	pkgdesc = Frameless GTK4 sticky note application with stacking support
+	pkgver = r41.a1130a7
+	pkgrel = 1
+	url = https://github.com/T-Chartrand/Stickity_Stacks
+	arch = any
+	license = GPL-3.0-only
+	makedepends = git
+	depends = python
+	depends = python-gobject
+	depends = gtk4
+	provides = stickity-stacks
+	conflicts = stickity-stacks
+	source = git+https://github.com/T-Chartrand/Stickity_Stacks.git
+	sha256sums = SKIP
+
+pkgname = stickity-stacks-git
