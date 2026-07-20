@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<component type="desktop-application">
+
+  <id>com.stickity.stacks</id>
+
+  <name>Stickity Stacks</name>
+
+  <summary>Sticky notes that stay together</summary>
+
+  <metadata_license>CC0-1.0</metadata_license>
+
+  <project_license>GPL-3.0-only</project_license>
+
+  <developer id="com.stickity.stacks">
+    <name>T-Chartrand</name>
+  </developer>
+
+  <url type="homepage">https://github.com/T-Chartrand/Stickity_Stacks</url>
+
+  <content_rating type="oars-1.1">
+    <content_attribute id="violence-cartoon">none</content_attribute>
+    <content_attribute id="violence-fantasy">none</content_attribute>
+    <content_attribute id="violence-realistic">none</content_attribute>
+    <content_attribute id="drugs-alcohol">none</content_attribute>
+    <content_attribute id="sex-nudity">none</content_attribute>
+    <content_attribute id="language-profanity">none</content_attribute>
+    <content_attribute id="social-chat">none</content_attribute>
+  </content_rating>
+
+  <description>
+    <p>
+      Stickity Stacks is a simple and intuitive sticky note application
+      designed to capture ideas quickly and organize them by stacking
+      related notes together.
+    </p>
+    <p>
+      Notes persist automatically and can be customized with fonts,
+      colors, and opacity settings.
+    </p>
+  </description>
+
+  <launchable type="desktop-id">
+    com.stickity.stacks.desktop
+  </launchable>
+
+  <categories>
+    <category>Utility</category>
+  </categories>
+
+  <keywords>
+    <keyword>notes</keyword>
+    <keyword>sticky</keyword>
+    <keyword>stack</keyword>
+    <keyword>ideas</keyword>
+    <keyword>productivity</keyword>
+  </keywords>
+
+  <provides>
+    <binary>stickity-stacks</binary>
+  </provides>
+
+</component>

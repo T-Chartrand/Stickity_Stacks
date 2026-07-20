@@ -309,6 +309,15 @@ class StickyNote(Gtk.Window):
         .dog-ear-button:hover {{
             background-color: rgba(0,0,0,0.15);
         }}
+         
+         scale {{
+            min-height: 24px;
+        }}
+
+        scale slider {{
+            min-width: 16px;
+            min-height: 16px;
+        }}
         """
 
         try:
@@ -370,9 +379,11 @@ class StickyNote(Gtk.Window):
 
         # Font picker
         box.append(Gtk.Label(label="Font:", halign=Gtk.Align.START))
-        fd = Gtk.FontDialog(title="Choose Font")
+        fd = Gtk.FontDialog()
         fb = Gtk.FontDialogButton(dialog=fd)
-
+        fb.set_hexpand(True)
+        fb.set_size_request(240, 36)
+ 
         try:
             current_desc = Pango.FontDescription(self.current_font)
             fb.set_font_desc(current_desc)
@@ -382,6 +393,7 @@ class StickyNote(Gtk.Window):
 
         fb.connect("notify::font-desc", self.on_font_changed)
         box.append(fb)
+        box.set_spacing(12)        
 
         # Text color picker
         box.append(Gtk.Label(label="Text Color:", halign=Gtk.Align.START))
@@ -404,12 +416,23 @@ class StickyNote(Gtk.Window):
         box.append(bb)
 
         # Opacity slider
-        box.append(Gtk.Label(label="Opacity:", halign=Gtk.Align.START))
-        opacity_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0.1, 1.0, 0.05)
+        opacity_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL,
+            0.1,
+            1.0,
+            0.05
+        )
+
         opacity_scale.set_value(self.current_opacity)
         opacity_scale.set_draw_value(True)
         opacity_scale.set_digits(2)
-        opacity_scale.connect("value-changed", self.on_opacity_changed)
+        opacity_scale.set_hexpand(True)
+        
+        opacity_scale.connect(
+            "value-changed",
+            self.on_opacity_changed
+        )
+
         box.append(opacity_scale)
 
         # Close button with proper styling reapplication
