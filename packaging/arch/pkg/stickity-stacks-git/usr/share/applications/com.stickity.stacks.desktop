@@ -1,0 +1,12 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Stickity Stacks
+Comment=Frameless GTK4 sticky notes with stacking feature
+Exec=stickity-stacks
+Icon=stickity_stacks
+Terminal=false
+Categories=Utility;Office;TextEditor;
+StartupNotify=true
+Keywords=notes;sticky;reminder;memo;note-taking;

@@ -1,0 +1,2 @@
+#!/bin/sh
+exec python3 /usr/lib/stickity-stacks/stickity_stacks.py "$@"
