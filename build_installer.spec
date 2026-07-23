@@ -1,43 +1,35 @@
 # -*- mode: python ; coding: utf-8 -*-
+
 """
-PyInstaller spec file for Stickity Stacks
-Builds a Windows executable with embedded icon and proper metadata
+Build the Windows tkinter version of Stickity Stacks.
 """
 
 a = Analysis(
-    ['stickity_stacks.py'],
+    ["stickity_stacks_win.py"],
     pathex=[],
     binaries=[],
     datas=[],
-    hiddenimports=['gi', 'gi.repository.Gtk', 'gi.repository.Gdk', 'gi.repository.Pango'],
+    hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludedimports=[],
+    excludes=["gi"],
     noarchive=False,
 )
 
-pyz = PYZ(a.pure, a.zipped_data, cipher=None)
+pyz = PYZ(a.pure)
 
 exe = EXE(
     pyz,
     a.scripts,
     a.binaries,
-    a.zipfiles,
     a.datas,
     [],
-    name='StickityStacks',
+    name="StickityStacks",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
+    upx=False,
     console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon='stickity_stacks.ico',
+    icon="stickity_stacks.ico",
 )
