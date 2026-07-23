@@ -3,70 +3,123 @@ name: Build Windows Installer
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
+
     permissions:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: false
+      - name: Checkout repository
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v7
         with:
-          python-version: '3.12'
+          python-version: "3.12"
 
       - name: Install PyInstaller
-        run: pip install pyinstaller
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
 
-      - name: Build executable
-        run: pyinstaller build_installer.spec
+      - name: Build Windows executable
+        run: |
+          pyinstaller --clean --noconfirm build_installer.spec
+
+      - name: Verify executable
+        shell: pwsh
+        run: |
+          if (!(Test-Path "dist\StickityStacks.exe")) {
+            throw "PyInstaller did not create dist\StickityStacks.exe"
+          }
+
+          $size = (Get-Item "dist\StickityStacks.exe").Length
+          Write-Host "Executable created: $size bytes"
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --yes --no-progress
 
       - name: Build installer
-        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
-        with:
-          path: installer.iss
-        env:
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+
+          if (!(Test-Path $compiler)) {
+            throw "Inno Setup compiler was not found at $compiler"
+          }
+
+          & $compiler "/DMyAppVersion=$version" installer.iss
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+          if (!(Test-Path "installer_output\*.exe")) {
+            throw "Inno Setup did not create an installer"
+          }
 
       - name: Build MSIX package
         shell: pwsh
         run: |
-          $makeappx = Get-ChildItem -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
-            -Filter makeappx.exe -Recurse | Sort-Object FullName -Descending | Select-Object -First 1
-          New-Item -ItemType Directory -Force -Path msix-build\Assets | Out-Null
-          Copy-Item dist\StickityStacks.exe       msix-build\
-          Copy-Item msix\Package.appxmanifest     msix-build\AppxManifest.xml
-          Copy-Item msix\Assets\*                 msix-build\Assets\
-          & $makeappx.FullName pack /d msix-build /p installer_output\StickityStacks.msix /nv
-          Write-Host "MSIX created: $(Get-Item installer_output\StickityStacks.msix | Select-Object -ExpandProperty Length) bytes"
+          $makeappx = Get-ChildItem `
+            -Path "${env:ProgramFiles(x86)}\Windows Kits\10\bin" `
+            -Filter makeappx.exe `
+            -Recurse |
+            Sort-Object FullName -Descending |
+            Select-Object -First 1
 
-      - name: Upload installer artifact
+          if (!$makeappx) {
+            throw "makeappx.exe was not found"
+          }
+
+          New-Item -ItemType Directory -Force `
+            -Path "msix-build\Assets" | Out-Null
+
+          New-Item -ItemType Directory -Force `
+            -Path "installer_output" | Out-Null
+
+          Copy-Item "dist\StickityStacks.exe" "msix-build\"
+          Copy-Item "msix\Package.appxmanifest" `
+            "msix-build\AppxManifest.xml"
+          Copy-Item "msix\Assets\*" "msix-build\Assets\"
+
+          & $makeappx.FullName pack `
+            /d msix-build `
+            /p installer_output\StickityStacks.msix `
+            /nv
+
+          if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+          }
+
+      - name: Upload Windows installer
         uses: actions/upload-artifact@v4
         with:
           name: StickityStacks-Windows-Installer
           path: installer_output/*.exe
+          if-no-files-found: error
           retention-days: 30
 
-      - name: Upload MSIX artifact
+      - name: Upload MSIX package
         uses: actions/upload-artifact@v4
         with:
           name: StickityStacks-MSIX
           path: installer_output/*.msix
+          if-no-files-found: error
           retention-days: 30
 
-      - name: Create GitHub Release
+      - name: Create GitHub release
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             installer_output/*.exe
             installer_output/*.msix
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
